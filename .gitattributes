@@ -1,0 +1,11 @@
+# 모든 파일을 기본적으로 제외
+* linguist-detectable=false
+
+# 파이썬만 포함
+*.py linguist-detectable=true
+*.ipynb linguist-language=Python   # 주피터 노트북도 파이썬으로 집계
+*.html linguist-vendored
+*.tex linguist-vendored
+*.sh linguist-vendored
+*.asm linguist-vendored
+*.asp linguist-vendored
