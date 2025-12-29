@@ -233,22 +233,7 @@ def click_go_to_ocr(page, timeout_ms=120000):
     try: page.wait_for_load_state("networkidle", timeout=15000)
     except: pass
 
-# ---- 저장 ----
-def click_save(page, timeout_ms=120000):
-    """
-    상단 고정 '저장' / '저장하기' / '완료' 버튼을 강제 클릭.
-    토스트/모달이 떠도 dialog auto-accept로 통과.
-    """
-    texts = ["저장하기", "저장", "완료"]
-    ok = robust_click_by_text(page, texts, timeout_ms=timeout_ms)
-    if not ok:
-        raise RuntimeError("저장 버튼을 찾거나 클릭하지 못했습니다.")
 
-    # 저장 처리 대기: 토스트/스피너가 사라지거나, 버튼이 다시 활성화되거나, URL/탭 상태가 안정화될 때까지
-    t0 = time.time()
-    while time.time() - t0 < 15:
-        try: page.wait_for_load_state("networkidle", timeout=2000); break
-        except: time.sleep(0.3)
 
 # ===================== 메인 작업 =====================
 def process_one_set(page, base, problem_file: Path, answer_file: Path, categories):
@@ -293,8 +278,9 @@ def process_one_set(page, base, problem_file: Path, answer_file: Path, categorie
     time.sleep(SAVE_DELAY_SEC)
 
     # 6) 저장 클릭(상단 우측 버튼 등)
-    click_save(page, timeout_ms=120000)
-    print(f"[✓] {base} : 저장 완료.")
+
+    click_top_right_close_x(page)
+
 
 def run(folder: Path, ent_id=None, ent_pw=None, log_queue=None):
     pairs = find_all_pairs_in_folder(folder, debug=True)
@@ -335,3 +321,31 @@ if __name__ == "__main__":
         raw = input("업로드할 폴더 경로를 붙여넣고 엔터: ")
         folder = Path(raw.strip().strip('"').strip("'").rstrip("\\/")).expanduser().resolve()
     run(folder)
+def click_top_right_close_x(page, timeout_ms=10000):
+    """
+    문제 수정 화면 우측 상단 X 버튼 클릭
+    (텍스트 없음, svg 아이콘만 있는 버튼)
+    """
+    print("[*] 문제 화면 X 버튼 찾는 중...")
+
+    # 1️⃣ svg를 포함한 버튼들 중 가장 오른쪽 상단 버튼
+    close_btn = page.locator("button:has(svg)").last
+
+    close_btn.wait_for(state="visible", timeout=timeout_ms)
+
+    try:
+        # DOM 겹침 대비 JS 강제 클릭
+        page.evaluate(
+            "(el) => { el.scrollIntoView({block:'center'}); el.click(); }",
+            close_btn
+        )
+    except:
+        close_btn.click(force=True)
+
+    # SPA 전환 대기
+    try:
+        page.wait_for_load_state("networkidle", timeout=10000)
+    except:
+        pass
+
+    print("[✓] 문제 화면 X 버튼 클릭 완료")
