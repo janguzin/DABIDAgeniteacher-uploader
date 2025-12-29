@@ -321,31 +321,43 @@ if __name__ == "__main__":
         raw = input("업로드할 폴더 경로를 붙여넣고 엔터: ")
         folder = Path(raw.strip().strip('"').strip("'").rstrip("\\/")).expanduser().resolve()
     run(folder)
-def click_top_right_close_x(page, timeout_ms=10000):
+def click_top_right_close_x(page, timeout_ms=5000):
     """
-    문제 수정 화면 우측 상단 X 버튼 클릭
-    (텍스트 없음, svg 아이콘만 있는 버튼)
+    문제 수정 화면 우측 상단 X 버튼
+    - 있으면 클릭
+    - 이미 닫혔으면 조용히 스킵
+    - 절대 에러 발생시키지 않음
     """
-    print("[*] 문제 화면 X 버튼 찾는 중...")
+    print("[*] 문제 화면 X 버튼 확인 중 (있으면 닫기)")
 
-    # 1️⃣ svg를 포함한 버튼들 중 가장 오른쪽 상단 버튼
-    close_btn = page.locator("button:has(svg)").last
+    end = time.time() + timeout_ms / 1000
 
-    close_btn.wait_for(state="visible", timeout=timeout_ms)
+    while time.time() < end:
+        try:
+            close_btn = page.locator("button:has(svg)").last
 
-    try:
-        # DOM 겹침 대비 JS 강제 클릭
-        page.evaluate(
-            "(el) => { el.scrollIntoView({block:'center'}); el.click(); }",
-            close_btn
-        )
-    except:
-        close_btn.click(force=True)
+            # 버튼 자체가 없음 → 이미 닫힘
+            if close_btn.count() == 0:
+                print("[i] X 버튼 없음 → 이미 닫힌 상태")
+                return
 
-    # SPA 전환 대기
-    try:
-        page.wait_for_load_state("networkidle", timeout=10000)
-    except:
-        pass
+            # DOM엔 있지만 안 보임 → 이미 닫힘
+            if not close_btn.first.is_visible():
+                print("[i] X 버튼 비가시 → 이미 닫힌 상태")
+                return
 
-    print("[✓] 문제 화면 X 버튼 클릭 완료")
+            # JS 강제 클릭
+            page.evaluate(
+                "(el)=>{ el.scrollIntoView({block:'center'}); el.click(); }",
+                close_btn.first
+            )
+
+            print("[✓] 문제 화면 X 버튼 클릭 완료")
+            return
+
+        except:
+            pass
+
+        time.sleep(0.3)
+
+    print("[i] X 버튼 클릭 스킵 (자동 전환된 것으로 판단)")
